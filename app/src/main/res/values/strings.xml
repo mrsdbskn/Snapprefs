@@ -370,8 +370,8 @@
     <string name="str_btn_reset">Reset</string>
     <string name="hnt_et_location">Type a location to find</string>
     <string name="google_maps_key" templateMergeStrategy="preserve" translatable="false">
-        AIzaSyDrN_SeVUZ1R7Qz-BggYYeyKuVdKU-NUmg
-        <!--AIzaSyD-XNCHffArxbrgQ_-CS1nDXZRTfcEIlO4 DEBUG-->
+        AIzaSyCvEObxOG63kWPx7ubmfJiIEGZCaNnJV58
+        <!--AIzaSyCvEObxOG63kWPx7ubmfJiIEGZCaNnJV58 DEBUG-->
     </string>
     <string name="title_activity_redeem">Redeem</string>
     <string name="title_activity_visual">Visual Filters</string>
