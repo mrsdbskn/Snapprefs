@@ -444,7 +444,7 @@ public class HookedLayouts {
                         new RelativeLayout.LayoutParams(liparam.view.findViewById(liparam.res.getIdentifier("drawing_btn", "id", Common.PACKAGE_SNAP)).getLayoutParams());
                 layoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.ALIGN_PARENT_TOP);
                 layoutParams.topMargin = px(45.0f);
-                layoutParams.leftMargin = px(10.0f);
+                layoutParams.leftMargin = px(5.0f);
                 final ImageButton textButton = new ImageButton(HookMethods.SnapContext);
                 textButton.setBackgroundColor(0);
                 textButton.setImageDrawable(mResources.getDrawable(R.drawable.triangle));
@@ -476,8 +476,8 @@ public class HookedLayouts {
                 final RelativeLayout.LayoutParams paramsSpeed =
                         new RelativeLayout.LayoutParams(liparam.view.findViewById(liparam.res.getIdentifier("drawing_btn", "id", Common.PACKAGE_SNAP)).getLayoutParams());
                 paramsSpeed.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.ALIGN_PARENT_TOP);
-                paramsSpeed.topMargin = px(90.0f);
-                paramsSpeed.leftMargin = px(10.0f);
+                paramsSpeed.topMargin = px(135.0f);
+                paramsSpeed.leftMargin = px(5.0f);
                 final ImageButton speed = new ImageButton(HookMethods.SnapContext);
                 speed.setBackgroundColor(0);
                 speed.setImageDrawable(mResources.getDrawable(R.drawable.speed));
@@ -494,7 +494,7 @@ public class HookedLayouts {
                         new RelativeLayout.LayoutParams(liparam.view.findViewById(liparam.res.getIdentifier("drawing_btn", "id", Common.PACKAGE_SNAP)).getLayoutParams());
                 paramsWeather.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.ALIGN_PARENT_TOP);
                 paramsWeather.topMargin = px(180.0f);
-                paramsWeather.leftMargin = px(10.0f);
+                paramsWeather.leftMargin = px(5.0f);
                 final ImageButton weather = new ImageButton(HookMethods.SnapContext);
                 weather.setBackgroundColor(0);
                 weather.setImageDrawable(mResources.getDrawable(R.drawable.weather));
@@ -510,8 +510,8 @@ public class HookedLayouts {
                 final RelativeLayout.LayoutParams paramsLocation =
                         new RelativeLayout.LayoutParams(liparam.view.findViewById(liparam.res.getIdentifier("drawing_btn", "id", Common.PACKAGE_SNAP)).getLayoutParams());
                 paramsLocation.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.ALIGN_PARENT_TOP);
-                paramsLocation.topMargin = px(135.0f);
-                paramsLocation.leftMargin = px(10.0f);
+                paramsLocation.topMargin = px(90.0f);
+                paramsLocation.leftMargin = px(5.0f);
                 final ImageButton location = new ImageButton(HookMethods.SnapContext);
                 location.setBackgroundColor(0);
                 location.setImageDrawable(mResources.getDrawable(R.drawable.location));
