@@ -66,7 +66,6 @@ public class LensIconLoader {
         if (!MainActivity.isNetworkAvailable(context))
             return null;
 
-        Bitmap bmImg;
         URL myFileUrl;
 
         try {
@@ -96,11 +95,12 @@ public class LensIconLoader {
         @Override
         protected Boolean doInBackground(Object... params) {
             try {
-                LensesFragment.LensItemData pair = (LensesFragment.LensItemData) params[0];
+                LensesFragment.LensItemData itemData = (LensesFragment.LensItemData) params[0];
                 Activity context = (Activity) params[1];
                 final ImageView iconView = (ImageView) params[2];
+                BitmapCache bitmapCache = (BitmapCache) params[3];
 
-                final String url = pair.url;
+                final String url = itemData.url;
                 final Bitmap bmp = retrieveAppropriateBitmap(url, context);
 
                 if (bmp == null) {
@@ -108,9 +108,7 @@ public class LensIconLoader {
                     return null;
                 }
 
-                float density = context.getResources().getDisplayMetrics().density;
-                final int imgSize = (int) (65f * density);
-                pair.lensIcon = Bitmap.createScaledBitmap(bmp, imgSize, imgSize, false);
+                bitmapCache.addBitmapToMemoryCache(itemData.lensCode, bmp);
 
                 context.runOnUiThread(new Runnable() {
                     @Override

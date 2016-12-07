@@ -5,20 +5,26 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.SparseArray;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+import android.widget.SeekBar;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -33,25 +39,21 @@ import com.marz.snapprefs.Logger.LogType;
 import com.marz.snapprefs.Preferences;
 import com.marz.snapprefs.Preferences.Prefs;
 import com.marz.snapprefs.R;
+import com.marz.snapprefs.Util.BitmapCache;
 import com.marz.snapprefs.Util.LensData;
+import com.marz.snapprefs.Util.ViewCache;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 
 import static android.app.Activity.RESULT_OK;
 
 /**
- * Created by Andre on 16/09/2016.
+ * This class was created by Andre R M (SID: 701439)
+ * It and its contents are free to use by all
  */
 public class LensesFragment extends Fragment {
-    private static final List<String> stringFilter = Arrays.asList(
-            "code_scheduled_lens_-_",
-            "len_",
-            "code_special_lens_-_"
-    );
-    private SparseArray<View> viewCache = new SparseArray<>();
+    public static BitmapCache bitmapCache = new BitmapCache();
     public LensListAdapter lensListAdapter;
     private final DialogInterface.OnClickListener onSelectAllClick = new DialogInterface.OnClickListener() {
         @Override
@@ -75,7 +77,6 @@ public class LensesFragment extends Fragment {
             Logger.enableLogging();
 
             lensListAdapter.notifyDataSetChanged();
-
         }
     };
     private final DialogInterface.OnClickListener onDeslectAllClick = new DialogInterface.OnClickListener() {
@@ -102,8 +103,9 @@ public class LensesFragment extends Fragment {
             lensListAdapter.notifyDataSetChanged();
         }
     };
+    private ViewCache viewCache = new ViewCache();
 
-    private static ArrayList<LensItemData> BuildLensItemData(LinkedHashMap<String, Object> lensMap, String partialName) {
+    private static ArrayList<LensItemData> buildLensItemData(LinkedHashMap<String, Object> lensMap, String partialName) {
         ArrayList<LensItemData> lensList = new ArrayList<>();
 
         for (Object obj : lensMap.values()) {
@@ -111,16 +113,16 @@ public class LensesFragment extends Fragment {
 
             LensItemData itemData = new LensItemData();
 
-            String nameBuilder = lensData.mCode;
-            for (String filter : stringFilter)
-                nameBuilder = nameBuilder.replace(filter, "");
+            if (lensData.name == null) {
+                String strippedName = Lens.stripLensName(lensData.mCode);
 
-            nameBuilder = nameBuilder.replaceAll("_", " ");
+                if (partialName != null && !strippedName.toLowerCase().contains(partialName.toLowerCase()))
+                    continue;
 
-            if (partialName != null && !nameBuilder.toLowerCase().contains(partialName.toLowerCase()))
-                continue;
+                itemData.lensName = strippedName;
+            } else
+                itemData.lensName = lensData.name;
 
-            itemData.lensName = nameBuilder;
             itemData.lensCode = lensData.mCode;
             itemData.url = lensData.mIconLink;
             itemData.isActive = lensData.mActive;
@@ -139,7 +141,7 @@ public class LensesFragment extends Fragment {
 
         Button lensLoaderButton = (Button) view.findViewById(R.id.btnLensSelector);
         TextView totalLensesTextView = (TextView) view.findViewById(R.id.textview_total_lens_count);
-        final TextView loadedLensesTextView = (TextView) view.findViewById(R.id.textview_loaded_lens_count);
+        TextView loadedLensesTextView = (TextView) view.findViewById(R.id.textview_loaded_lens_count);
         Switch loadLensSwitch = (Switch) view.findViewById(R.id.lensloader_toggle);
         Switch collectLensSwitch = (Switch) view.findViewById(R.id.lenscollector_toggle);
         Switch autoEnableSwitch = (Switch) view.findViewById(R.id.autoenable_switch);
@@ -195,7 +197,7 @@ public class LensesFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 if (lensListSize > 0)
-                    lensDialog(getContext(), loadedLensesTextView, inflater, container);
+                    lensDialog(getContext(), inflater, container);
                 else
                     Toast.makeText(v.getContext(), "You've not collected any lenses!", Toast.LENGTH_SHORT).show();
             }
@@ -220,11 +222,11 @@ public class LensesFragment extends Fragment {
         final int lensListSize = (int) Lens.getLensDatabase(getContext()).getRowCount();
         int selectedLensSize = Lens.getLensDatabase(getContext()).getActiveLensCount();
 
-        ((TextView) viewCache.get(R.id.textview_total_lens_count)).setText(String.format("%s", lensListSize));
-        ((TextView) viewCache.get(R.id.textview_loaded_lens_count)).setText(String.format("%s", selectedLensSize));
+        viewCache.getTV(R.id.textview_total_lens_count).setText(String.format("%s", lensListSize));
+        viewCache.getTV(R.id.textview_loaded_lens_count).setText(String.format("%s", selectedLensSize));
     }
 
-    private void lensDialog(final Context context, final TextView loadedLensesTextView, LayoutInflater inflater,
+    private void lensDialog(final Context context, LayoutInflater inflater,
                             ViewGroup container) {
         LinkedHashMap<String, Object> lensMap = (LinkedHashMap<String, Object>) Lens.getLensDatabase(context).getAllLenses();
 
@@ -237,39 +239,76 @@ public class LensesFragment extends Fragment {
         builder.setTitle("Select Lenses");
         View view = inflater.inflate(R.layout.lenslist_layout, container, false);
 
-        SetupRecyclerView(lensMap, view);
-        SetupFilterSelector(view);
-        SetupSelectionButtons(context, view);
+        RecyclerView recyclerView = setupRecyclerView(lensMap, view);
+        setupLensSpanSeekbar(view, recyclerView);
+        setupFilterSelector(view);
+        setupSelectionButtons(context, view);
 
         builder.setView(view);
-        builder.setPositiveButton(Common.dialog_done, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                int selectedLensSize = Lens.getLensDatabase(context).getActiveLensCount();
-                loadedLensesTextView.setText(String.format("%s", selectedLensSize));
-            }
-        });
-        builder.setNegativeButton(Common.dialog_cancel, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                int selectedLensSize = Lens.getLensDatabase(context).getActiveLensCount();
-                loadedLensesTextView.setText(String.format("%s", selectedLensSize));
-            }
-        });
+        builder.setPositiveButton(Common.dialog_done, null);
 
-        builder.show();
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+        Window window = builder.show().getWindow();
+        if( window != null ) {
+            lp.copyFrom(window.getAttributes());
+//This makes the dialog take up the full width
+            lp.width = WindowManager.LayoutParams.MATCH_PARENT;
+            lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
+            window.setAttributes(lp);
+        }
     }
 
-    private void SetupRecyclerView(LinkedHashMap<String, Object> lensMap, View view) {
-        ArrayList<LensItemData> itemDataList = BuildLensItemData(lensMap, null);
-        lensListAdapter = new LensListAdapter(view.getContext(), itemDataList, this);
-        RecyclerView recyclerView = (RecyclerView) view.findViewById(R.id.lens_recyclerview);
-        RecyclerView.LayoutManager layoutManager = new GridLayoutManager(view.getContext(), 4);
+    private RecyclerView setupRecyclerView(LinkedHashMap<String, Object> lensMap, final View view) {
+        RelativeLayout recyclerContainer = (RelativeLayout) view.findViewById(R.id.lens_list_holder);
+        ArrayList<LensItemData> itemDataList = buildLensItemData(lensMap, null);
+        lensListAdapter = new LensListAdapter(view.getContext(), itemDataList, this, bitmapCache);
+
+        RecyclerView recyclerView = new RecyclerView(getContext()) {
+            @Override
+            protected void onDetachedFromWindow() {
+                // This has been detached from Window, so clear the drawable
+                super.onDetachedFromWindow();
+                int selectedLensSize = Lens.getLensDatabase(getContext()).getActiveLensCount();
+                TextView loadedLenses = (TextView) viewCache.get(R.id.textview_loaded_lens_count);
+                loadedLenses.setText(String.format("%s", selectedLensSize));
+
+                Logger.log("Endpoint");
+            }
+        };
+
+        RecyclerView.LayoutManager layoutManager = new GridLayoutManager(view.getContext(), Preferences.getInt(Prefs.LENS_SELECTOR_SPAN));
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Toolbar.LayoutParams.MATCH_PARENT);
+        layoutParams.gravity = Gravity.CENTER;
+        recyclerView.setLayoutParams(layoutParams);
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(lensListAdapter);
+        recyclerView.setVerticalScrollBarEnabled(true);
+
+        recyclerContainer.addView(recyclerView);
+        return recyclerView;
     }
 
-    private void SetupSelectionButtons(Context context, View view) {
+    private void setupLensSpanSeekbar(final View view, final RecyclerView recyclerView) {
+        SeekBar spanCount = (SeekBar) view.findViewById(R.id.lens_seek_span);
+        spanCount.setProgress(Preferences.getInt(Prefs.LENS_SELECTOR_SPAN) - 1);
+
+        spanCount.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                RecyclerView.LayoutManager layoutManager = new GridLayoutManager(view.getContext(), i + 1);
+                recyclerView.setLayoutManager(layoutManager);
+                Preferences.setPref(Prefs.LENS_SELECTOR_SPAN, i + 1);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+    }
+
+    private void setupSelectionButtons(Context context, View view) {
         Button btnSelectAll = (Button) view.findViewById(R.id.btn_select_all_lenses);
         Button btnDeselectAll = (Button) view.findViewById(R.id.btn_deselect_all_lenses);
 
@@ -297,7 +336,7 @@ public class LensesFragment extends Fragment {
         });
     }
 
-    private void SetupFilterSelector(final View view) {
+    private void setupFilterSelector(final View view) {
         final TextView txt_filter = (TextView) view.findViewById(R.id.lens_filter);
 
         txt_filter.addTextChangedListener(new TextWatcher() {
@@ -320,7 +359,7 @@ public class LensesFragment extends Fragment {
                 if (lensMap == null)
                     lensListAdapter.lensDataList.clear();
                 else
-                    lensListAdapter.lensDataList = BuildLensItemData(lensMap, editable.toString());
+                    lensListAdapter.lensDataList = buildLensItemData(lensMap, editable.toString());
 
                 lensListAdapter.notifyDataSetChanged();
             }
@@ -359,14 +398,12 @@ public class LensesFragment extends Fragment {
             if (mergedLenses > 0) {
                 refreshLensCount();
                 Toast.makeText(getContext(), "Successfully merged " + mergedLenses + " lenses!", Toast.LENGTH_SHORT).show();
-            }
-            else
+            } else
                 Toast.makeText(getContext(), "Found no lenses to merge!", Toast.LENGTH_SHORT).show();
         }
     }
 
     public static class LensItemData {
-        public Bitmap lensIcon;
         public String lensCode;
         public String lensName;
         public String url;
