@@ -72,6 +72,12 @@ public class NowPlaying {
             case 1:
                 id = R.layout.now_playing_2;
                 break;
+            case 2:
+                id = R.layout.now_playing_3;
+                break;
+            case 3:
+                id = R.layout.now_playing_4;
+                break;
             default:
                 id = R.layout.now_playing;
                 break;
