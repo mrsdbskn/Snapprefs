@@ -60,7 +60,7 @@ public class NowPlaying {
 
     public static void changeLayout() {
         layoutNumber++;
-        if (layoutNumber > 1) {
+        if (layoutNumber > 3) {
             layoutNumber = 0;
 //            landscape = !landscape;
         }
