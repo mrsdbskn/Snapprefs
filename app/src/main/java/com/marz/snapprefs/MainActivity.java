@@ -1,6 +1,8 @@
 package com.marz.snapprefs;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningServiceInfo;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -18,15 +20,18 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentManager.BackStackEntry;
+import android.support.v4.app.FragmentManager.OnBackStackChangedListener;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.MenuItem;
+import android.view.SubMenu;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -40,6 +45,7 @@ import com.google.android.gms.ads.AdView;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
+import com.marz.snapprefs.Fragments.LensesFragment;
 import com.marz.snapprefs.Logger.LogType;
 import com.marz.snapprefs.Tabs.BuyTabFragment;
 import com.marz.snapprefs.Tabs.ChatLogsTabFragment;
@@ -55,6 +61,7 @@ import com.marz.snapprefs.Tabs.SpoofingTabFragment;
 import com.marz.snapprefs.Tabs.TextTabFragment;
 import com.marz.snapprefs.Util.CommonUtils;
 
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -63,7 +70,6 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -119,7 +125,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
     };
-    private ArrayList<MenuItem> items = new ArrayList<>();
+    private MenuItem mainMenuItem;
+    private MenuItem lastItem;
     private String gcmRegId;
 
     public static String getDeviceId() {
@@ -128,9 +135,6 @@ public class MainActivity extends AppCompatActivity {
 
     public static SharedPreferences getPreferences() {
         return prefs;
-    }
-
-    private static void createIfNotExisting() {
     }
 
     @Override
@@ -144,6 +148,8 @@ public class MainActivity extends AppCompatActivity {
 
         if( prefsFile.exists())
             prefsFile.setReadable(true, false);
+
+        LensesFragment.bitmapCache.clearCache();
     }
 
     @Override
@@ -153,17 +159,21 @@ public class MainActivity extends AppCompatActivity {
         Logger.loadSelectedLogTypes();
         ChangeLog cl = new ChangeLog(context);
         createDeviceId();
+
+
+
+
         /*Obfuscator.writeGsonFile();
         try {
             Thread.sleep(2000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        Obfuscator.readJsonFile();
+        Obfuscator.readJsonFile();*/
 
         if (cl.isFirstRun()) {
             cl.getLogDialog().show();
-        }*/
+        }
         Logger.log("MainActivity: Checking if module is enabled.");
         int moduleStatus = CommonUtils.getModuleStatus();
         if(moduleStatus != Common.MODULE_STATUS_ACTIVATED) {
@@ -187,11 +197,7 @@ public class MainActivity extends AppCompatActivity {
             Preferences.loadMap(prefs);
         }
 
-        Logger.log("MainActivity: initialiseListener");
-        Preferences.initialiseListener(prefs);
-
         Logger.log("Load lenses: " + prefs.contains("pref_key_load_lenses"));
-
 
         Logger.log("SAVE LOCATION: " + Preferences.getSavePath());
         if (!Preferences.getBool(Preferences.Prefs.ACCEPTED_TOU)) {
@@ -295,12 +301,33 @@ public class MainActivity extends AppCompatActivity {
          */
 
         mFragmentManager = getSupportFragmentManager();
+        mainMenuItem = mNavigationView.getMenu().getItem(0);
+        mFragmentManager.addOnBackStackChangedListener(new OnBackStackChangedListener() {
+            int lastEntryCount = 0;
+            @Override
+            public void onBackStackChanged() {
+                int entryCount = mFragmentManager.getBackStackEntryCount();
+                Logger.log("StackSize: "+ entryCount);
+                String entryName;
+
+                lastEntryCount = entryCount;
+
+                if(entryCount <= 0)
+                    entryName = mainMenuItem.getTitle().toString();
+                else
+                    entryName = mFragmentManager.getBackStackEntryAt(entryCount - 1).getName();
+
+                Logger.log("EntryName: " + entryName);
+                selectNavItem(entryName);
+            }
+        });
 //        mFragmentTransaction = mFragmentManager.beginTransaction();
 //        mFragmentTransaction.replace(R.id.containerView,new MainTabFragment()).commit();
         mFragmentManager.beginTransaction().replace(R.id.containerView, getForId(R.id.nav_item_main)).commit();
-        mNavigationView.getMenu().getItem(0).setCheckable(true);
-        mNavigationView.getMenu().getItem(0).setChecked(true);
-        items.add(mNavigationView.getMenu().getItem(0));
+        mainMenuItem.setCheckable(true);
+        mainMenuItem.setChecked(true);
+        lastItem = mainMenuItem;
+
         /**
          * Setup click events on the Navigation View Items.
          */
@@ -308,30 +335,22 @@ public class MainActivity extends AppCompatActivity {
         mNavigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+                if(menuItem == lastItem)
+                    return false;
                 mDrawerLayout.closeDrawers();
+                clearBackStack();
                 menuItem.setCheckable(true);
-                menuItem.setChecked(true);
-                Iterator<MenuItem> it = items.iterator();
 
-                handleBackStack();
                 FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
 
-                while (it.hasNext()) {
-                    MenuItem item = it.next();
-                    if (!item.equals(menuItem)) {
-                        item.setChecked(false);
-
-                        if( item.getItemId() == R.id.nav_item_main)
-                            fragmentTransaction.addToBackStack(item.getTitle().toString());
-                    }
-                }
+                if(menuItem != mainMenuItem)
+                    fragmentTransaction.addToBackStack(menuItem.getTitle().toString());
 
                 fragmentTransaction.replace(R.id.containerView, getForId(menuItem.getItemId()));
-                items.add(menuItem);
                 fragmentTransaction.commit();
+                selectNavItem(menuItem);
                 return false;
             }
-
         });
 
         /**
@@ -347,18 +366,56 @@ public class MainActivity extends AppCompatActivity {
         mDrawerToggle.syncState();
     }
 
-    private void handleBackStack() {
+    private void selectNavItem(MenuItem item) {
+        lastItem.setChecked(false);
+        item.setChecked(true);
+        lastItem = item;
+    }
+
+    private void selectNavItem(String entryName) {
+        for(int i = 0; i < mNavigationView.getMenu().size(); i++) {
+            MenuItem item = mNavigationView.getMenu().getItem(i);
+
+            if( item.hasSubMenu() ) {
+                selectNavItemFromSub(entryName, item.getSubMenu());
+            } else {
+                if (item.getTitle().equals(entryName)) {
+                    selectNavItem(item);
+                    return;
+                }
+            }
+        }
+    }
+
+    private void selectNavItemFromSub(String entryName, SubMenu subMenu) {
+        for(int i = 0; i < subMenu.size(); i++) {
+            MenuItem item = subMenu.getItem(i);
+
+            if( item.hasSubMenu() )
+                selectNavItemFromSub(entryName, item.getSubMenu());
+            else {
+                if (item.getTitle().equals(entryName)) {
+                    selectNavItem(item);
+                    return;
+                }
+            }
+        }
+    }
+
+    private boolean clearBackStack() {
         int count = mFragmentManager.getBackStackEntryCount() - 1;
 
         for(int i = count; i > -1; i--) {
             BackStackEntry stackEntry = mFragmentManager.getBackStackEntryAt(i);
 
             if( stackEntry == null )
-                return;
+                return false;
 
             Logger.log(String.format("Removed [%s][Index:%s] from back stack", stackEntry.getName(), i), LogType.DEBUG);
             mFragmentManager.popBackStack(stackEntry.getName(), FragmentManager.POP_BACK_STACK_INCLUSIVE);
         }
+
+        return false;
     }
 
     public Fragment getForId(int id) {
@@ -473,12 +530,11 @@ public class MainActivity extends AppCompatActivity {
         deviceUuid = new UUID(androidId.hashCode(), ((long) tmDevice.hashCode() << 32) | tmSerial.hashCode());
     }
 
-    public String readStringPreference(String key) {
-        SharedPreferences prefs = getPreferences();
-        return prefs.getString(key, null);
-    }
-
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     private SharedPreferences createPrefsIfNotExisting() {
+        if(prefs != null)
+            return prefs;
+
         File prefsFile = new File(
                 Environment.getDataDirectory(), "data/"
                 + getPackageName() + "/shared_prefs/" + getPackageName()
@@ -486,13 +542,19 @@ public class MainActivity extends AppCompatActivity {
         prefsFile.setReadable(true, false);
         Logger.log("Creating preference object : " + this.getPackageName());
 
-        prefs = this.getSharedPreferences(this.getPackageName() + "_preferences", Activity.MODE_WORLD_READABLE);
+        prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 
         return prefs;
     }
 
     public static boolean isNetworkAvailable(final Context context) {
         return ((ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo() != null;
+    }
+
+    public void onResume() {
+        super.onResume();
+
+        Preferences.initialiseListener(createPrefsIfNotExisting(), this);
     }
 
     public void saveInSharedPref(String result) {
@@ -515,7 +577,33 @@ public class MainActivity extends AppCompatActivity {
             return false;
         }
         return true;
+    }
 
+    public static void killSCService(Activity activity) throws IOException {
+        ActivityManager activityManager = (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
+        for(RunningServiceInfo serviceInfo : activityManager.getRunningServices(Integer.MAX_VALUE)) {
+            String packageName = serviceInfo.service.getPackageName();
+
+            if(packageName.equals("com.snapchat.android")) {
+                Logger.log("PackageName: " + packageName);
+                Logger.log("Process: " + serviceInfo.process);
+                Logger.log("Started: " + serviceInfo.started);
+
+                Process suProcess = Runtime.getRuntime().exec("su");
+                DataOutputStream os = new DataOutputStream(suProcess.getOutputStream());
+
+                os.writeBytes("adb shell" + "\n");
+
+                os.flush();
+
+                os.writeBytes("am force-stop com.snapchat.android" + "\n");
+
+                os.flush();
+
+                Toast.makeText(activity, "Killed snapchat in the background", Toast.LENGTH_SHORT).show();
+                break;
+            }
+        }
     }
 
     private class GCMRegistrationTask extends AsyncTask<Void, Void, String> {

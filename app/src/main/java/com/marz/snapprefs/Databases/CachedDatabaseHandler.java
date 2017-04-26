@@ -11,8 +11,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 /**
- * Used to reduce calls to the database by storing contents in a hashmap
- * Created by Andre on 24/10/2016.
+ * This class was created by Andre R M (SID: 701439)
+ * It and its contents are free to use by all
  */
 
 class CachedDatabaseHandler extends CoreDatabaseHandler {
@@ -168,13 +168,11 @@ class CachedDatabaseHandler extends CoreDatabaseHandler {
     }
 
     public int deleteObject(String tableName, String columnName, String[] selectionArgs) {
-        String selection = columnName + " = ?";
-
-        return (int) shouldInvalidateCache(super.deleteObject(tableName, selection, selectionArgs));
+        return (int) shouldInvalidateCache(super.deleteObject(tableName, columnName, selectionArgs));
     }
 
     public int updateObject(String tableName, String columnName, String[] selectionArgs,
-                             ContentValues values) {
+                            ContentValues values) {
         return (int) shouldInvalidateCache(super.updateObject(tableName, columnName, selectionArgs, values));
     }
 

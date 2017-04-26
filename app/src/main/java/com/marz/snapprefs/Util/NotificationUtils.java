@@ -76,7 +76,7 @@ public class NotificationUtils {
         if (!Preferences.getBool(Prefs.TOAST_ENABLED))
             return;
 
-        if (Preferences.getBool(Prefs.STEALTH_NOTIFICATIONS))
+        if (Preferences.getBool(Prefs.STEALTH_NOTIFICATIONS) && Preferences.getLicence() >= 2)
             showStealthToast(type);
         else {
             NotificationUtils.showMessage(
@@ -88,7 +88,7 @@ public class NotificationUtils {
     }
 
     private static void showStealthToast(ToastType type) {
-        if (statusDrawable == null)
+        if (Preferences.getLicence() < 2 || statusDrawable == null)
             return;
 
         final int offset = 20;
@@ -104,13 +104,14 @@ public class NotificationUtils {
         final ImageView view = new ImageView(HookMethods.SnapContext);
         view.setImageDrawable(statusDrawable);
         view.bringToFront();
+        final int horizontalPosition = Preferences.getBool(Prefs.BUTTON_POSITION) ? Gravity.END : Gravity.START;
 
         HookMethods.SnapContext.runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 Toast statusToast = new Toast(HookMethods.SnapContext);
                 statusToast.setView(view);
-                statusToast.setGravity(Gravity.BOTTOM | Gravity.START, offset, offset);
+                statusToast.setGravity(Gravity.BOTTOM | horizontalPosition, offset, offset);
                 statusToast.setDuration(longLength ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
                 statusToast.show();
             }

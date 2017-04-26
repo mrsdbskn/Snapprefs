@@ -39,11 +39,4 @@
                 android:topRightRadius="7dp" />
         </shape>
     </item>
-    <item
-        android:left="-32.5dp"
-        android:top="-1dp">
-        <bitmap
-            android:gravity="left|top"
-            android:src="@drawable/arrow"/>
-    </item>
 </layer-list>

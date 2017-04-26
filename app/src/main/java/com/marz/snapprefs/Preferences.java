@@ -1,5 +1,6 @@
 package com.marz.snapprefs;
 
+import android.app.Activity;
 import android.content.SharedPreferences;
 import android.os.Environment;
 
@@ -7,6 +8,7 @@ import com.marz.snapprefs.Logger.LogType;
 import com.marz.snapprefs.Settings.MiscSettings;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -103,11 +105,13 @@ public class Preferences {
         loadMap(xSPrefs);
     }
 
-    public static void initialiseListener(SharedPreferences sharedPreferences) {
+    public static void initialiseListener(SharedPreferences sharedPreferences, final Activity activity) {
+        Logger.log("Initialising Preference Listener", LogType.PREFS);
+
         sharedPreferences.registerOnSharedPreferenceChangeListener(new SharedPreferences.OnSharedPreferenceChangeListener() {
             @Override
             public void onSharedPreferenceChanged(SharedPreferences sPrefs, String key) {
-                Logger.log("SharedPreference changed: " + key, LogType.PREFS);
+                Logger.log("SharedPreference changed: " + key, LogType.PREFS.setForced());
                 Prefs preference = Prefs.getPrefFromKey(key);
 
                 if (preference == null) {
@@ -126,6 +130,17 @@ public class Preferences {
                     setPref(preference, sPrefs.getString(key, (String) preference.defaultVal));
                 else if (preference.defaultVal instanceof Integer)
                     setPref(preference, sPrefs.getInt(key, (int) preference.defaultVal));
+                else {
+                    Logger.log("Unknown preference type! " + preference.defaultVal, LogType.PREFS.setForced());
+                    return;
+                }
+
+                try {
+                    if(getBool(Prefs.KILL_SC_ON_PREF_CHANGE))
+                        MainActivity.killSCService(activity);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         });
     }
@@ -201,12 +216,9 @@ public class Preferences {
         return (int) preferenceVal;
     }
 
-    public static void setPref(String key, Object value) throws NullPointerException {
-        preferenceMap.put(key, value);
-    }
-
     public static void setPref(Prefs preference, Object value) {
         preferenceMap.put(preference.key, value != null ? value : preference.defaultVal);
+        Logger.log(String.format("Setting preference [Pref:%s] to [Value:%s]", preference, value));
     }
 
     public static void putContent(Map<String, Object> values) {
@@ -388,7 +400,7 @@ public class Preferences {
         SAVE_SENT_SNAPS("pref_key_save_sent_snaps", true),
         SORT_BY_CATEGORY("pref_key_sort_files_mode", false),
         SORT_BY_USERNAME("pref_key_sort_files_username", true),
-        DEBUGGING("pref_key_debug", true),
+        DEBUGGING("pref_key_debug", BuildConfig.BUILD_TYPE.toLowerCase() == "debug"),
         OVERLAYS("pref_key_overlay", false),
         SPEED("pref_key_speed", false),
         WEATHER("pref_key_weather", false),
@@ -402,17 +414,19 @@ public class Preferences {
         REPLAY("pref_key_replay", false),
         STEALTH_VIEWING("pref_key_viewed", false),
         STEALTH_CHAT_SAVING("pref_key_stealth_chat_saving", false),
-        STEALTH_SAVING_BUTTON("pref_key_stealth_saving_button", false),
         STEALTH_NOTIFICATIONS("pref_key_stealth_notification", false),
         HIDE_TYPING_AND_PRESENCE("pref_key_typing", false),
         UNLIM_GROUPS("pref_key_groups_unlim", false),
         SELECT_ALL("pref_key_selectall", false),
         HIDE_BF("pref_key_hidebf", false),
         TIMER_COUNTER("pref_key_timercounter", false),
+        FLASH_KEY("pref_key_flashkey", true),
         CHAT_AUTO_SAVE("pref_key_save_chat_text", false),
         CHAT_MEDIA_SAVE("pref_key_save_chat_image", false),
         INTEGRATION("pref_key_integration", true),
         BUTTON_POSITION("pref_key_save_button_position", false),
+        BUTTON_OPACITY("pref_key_save_button_opacity", 100),
+        BUTTON_RESIZE("pref_key_save_button_opacity_resize", false),
         LENSES_LOAD("pref_key_load_lenses", true),
         LENSES_COLLECT("pref_key_collect_lenses", true),
         LENSES_AUTO_ENABLE("pref_key_auto_enable_lenses", false),
@@ -432,6 +446,7 @@ public class Preferences {
         AUTO_ADVANCE("pref_key_auto_advance", false),
         CHAT_LOGGING("pref_key_chat_logging", true),
         GROUPS("pref_key_groups", true),
+        KILL_SC_ON_PREF_CHANGE("pref_key_kill_sc", true),
 
         VFILTER_AMARO("AMARO", false),
         VFILTER_F1997("F1997", false),
@@ -469,7 +484,8 @@ public class Preferences {
         CUSTOM_FILTER_TYPE("pref_key_filter_type", 0),
         LICENCE(DEVICE_ID.key, 0),
         ROTATION_MODE("pref_rotation", Common.ROTATION_CW),
-        ADJUST_METHOD("pref_adjustment", Common.ADJUST_CROP);
+        ADJUST_METHOD("pref_adjustment", Common.ADJUST_CROP),
+        LENS_SELECTOR_SPAN("pref_lens_span", 4);
 
         public String key;
         public Object defaultVal;

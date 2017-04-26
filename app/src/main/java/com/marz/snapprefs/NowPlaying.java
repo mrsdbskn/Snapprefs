@@ -60,7 +60,7 @@ public class NowPlaying {
 
     public static void changeLayout() {
         layoutNumber++;
-        if (layoutNumber > 1) {
+        if (layoutNumber > 3) {
             layoutNumber = 0;
 //            landscape = !landscape;
         }
@@ -71,6 +71,12 @@ public class NowPlaying {
                 break;
             case 1:
                 id = R.layout.now_playing_2;
+                break;
+            case 2:
+                id = R.layout.now_playing_3;
+                break;
+            case 3:
+                id = R.layout.now_playing_4;
                 break;
             default:
                 id = R.layout.now_playing;
